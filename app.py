@@ -58,7 +58,7 @@ st.plotly_chart(fig_pie, use_container_width=True)
 
 st.subheader("Top 10 Centres by Enrollment")
 top10 = df[['ECD Centre', 'Sub County', 'Total_Enrollment', 'Attendance_Rate_%', 
-            'Is the licensing status of this ECCE centre']]\
+            'What is the licensing status of this ECCE centre']]\
         .sort_values('Total_Enrollment', ascending=False)\
         .head(10)\
         .reset_index(drop=True)
@@ -74,3 +74,4 @@ st.dataframe(
 st.markdown("---")
 
 st.caption("Data: ECD Termly Monitoring Tool – Mubende Focus Districts")
+
