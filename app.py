@@ -42,7 +42,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total ECD Centres", len(df))
 col2.metric("Total Children Enrolled", f"{int(df['Total_Enrollment'].sum()):,}")
 col3.metric("Average Attendance Rate", f"{df['Attendance_Rate_%'].mean():.1f}%")
-col4.metric("Licensed Centres", f"{(df['Is the licensing status of this ECCE centre'] == 'Licensed').sum()}")
+col4.metric("Licensed Centres", f"{(df['What is the licensing status of this ECCE centre'] == 'Licensed').sum()}")
 
 st.subheader("Centres by Sub-County")
 subcounty_df = df['Sub County'].value_counts().reset_index(name='Number of Centres')
@@ -52,7 +52,7 @@ fig_bar = px.bar(subcounty_df, x='Sub County', y='Number of Centres',
 st.plotly_chart(fig_bar, use_container_width=True)
 
 st.subheader("Licensing Status Breakdown")
-fig_pie = px.pie(df, names='Is the licensing status of this ECCE centre',
+fig_pie = px.pie(df, names='What is the licensing status of this ECCE centre',
                  title="Distribution by Licensing Status")
 st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -72,4 +72,5 @@ st.dataframe(
 )
 
 st.markdown("---")
+
 st.caption("Data: ECD Termly Monitoring Tool – Mubende Focus Districts")
