@@ -21,6 +21,7 @@ def find_col(df, names, required=True):
             return name
     if required:
         st.error(f"Missing required column. Checked: {names}")
+        st.write("Available columns:")
         st.write(df.columns.tolist())
         st.stop()
     return None
@@ -28,12 +29,32 @@ def find_col(df, names, required=True):
 def yes_share(df, col):
     if col is None:
         return np.nan
-    return df[col].astype(str).str.strip().str.lower().eq("yes").mean()
+    s = df[col].astype(str).str.strip().str.lower()
+    return s.eq("yes").mean()
 
 def count_yes(df, col):
     if col is None:
         return 0
-    return int(df[col].astype(str).str.strip().str.lower().eq("yes").sum())
+    s = df[col].astype(str).str.strip().str.lower()
+    return int(s.eq("yes").sum())
+
+def yes_no_counts(df, col):
+    if col is None:
+        return pd.DataFrame(columns=["Response", "Centres"])
+    s = df[col].astype(str).str.strip().str.title()
+    s = s.replace({"Nan": "Unknown", "": "Unknown"})
+    out = s.value_counts(dropna=False).reset_index()
+    out.columns = ["Response", "Centres"]
+    return out
+
+def category_counts(df, col, value_name="Centres"):
+    if col is None:
+        return pd.DataFrame(columns=["Category", value_name])
+    s = df[col].astype(str).str.strip()
+    s = s.replace({"": "Unknown", "nan": "Unknown", "NaN": "Unknown"})
+    out = s.value_counts(dropna=False).reset_index()
+    out.columns = ["Category", value_name]
+    return out
 
 try:
     df = load_data(file_url)
@@ -154,11 +175,10 @@ income_exp_col = find_col(df, [
     "Income and expenditure books"
 ], required=False)
 
-sne_col = find_col(df, [
+sne_presence_col = find_col(df, [
     "Does the ECCE centre have children with Special Needs (SNEs)?"
 ], required=False)
 
-# caregiver quality
 trained_cg_male_col = find_col(df, [
     "Number of trained caregivers - Males",
     "Number of trained Caregivers - Males"
@@ -179,7 +199,6 @@ qualified_cg_female_col = find_col(df, [
     "Number of qualified Caregivers - Females"
 ], required=False)
 
-# learning/play materials
 materials_cols = {
     "Story books": find_col(df, ["Are story books available?", "Story books available"], required=False),
     "Toys": find_col(df, ["Are toys available?", "Toys available"], required=False),
@@ -188,14 +207,12 @@ materials_cols = {
     "Teaching aids": find_col(df, ["Are teaching aids available?", "Teaching aids available"], required=False),
 }
 
-# school feeding source
 feeding_source_col = find_col(df, [
     "What is the source of food for school feeding?",
     "Main source of food for school feeding",
     "Source of school feeding"
 ], required=False)
 
-# IECD services
 vacc_col = find_col(df, [
     "Does the ECCE centre support immunization/vaccination services?",
     "Vaccination services provided",
@@ -263,20 +280,23 @@ df["Caregivers_Total"] = num(df[male_cg]) + num(df[female_cg])
 df["Attendance_Rate"] = np.where(df["Total_Enrollment"] > 0, df["Total_Attendance"] / df["Total_Enrollment"], np.nan)
 df["Learners_per_Caregiver"] = np.where(df["Caregivers_Total"] > 0, df["Total_Enrollment"] / df["Caregivers_Total"], np.nan)
 df["Licensed_Flag"] = df[lic_col].astype(str).str.strip().str.lower().eq("licensed").astype(int)
+df["Registered_or_Licensed_Flag"] = df[lic_col].astype(str).str.strip().str.lower().isin(["licensed", "registered"]).astype(int)
 
-trained_total = 0
-if trained_cg_male_col:
-    trained_total += num(df[trained_cg_male_col])
-if trained_cg_female_col:
-    trained_total += num(df[trained_cg_female_col])
-df["Trained_Caregivers_Total"] = trained_total if isinstance(trained_total, pd.Series) else 0
+if trained_cg_male_col or trained_cg_female_col:
+    df["Trained_Caregivers_Total"] = (
+        (num(df[trained_cg_male_col]) if trained_cg_male_col else 0) +
+        (num(df[trained_cg_female_col]) if trained_cg_female_col else 0)
+    )
+else:
+    df["Trained_Caregivers_Total"] = 0
 
-qualified_total = 0
-if qualified_cg_male_col:
-    qualified_total += num(df[qualified_cg_male_col])
-if qualified_cg_female_col:
-    qualified_total += num(df[qualified_cg_female_col])
-df["Qualified_Caregivers_Total"] = qualified_total if isinstance(qualified_total, pd.Series) else 0
+if qualified_cg_male_col or qualified_cg_female_col:
+    df["Qualified_Caregivers_Total"] = (
+        (num(df[qualified_cg_male_col]) if qualified_cg_male_col else 0) +
+        (num(df[qualified_cg_female_col]) if qualified_cg_female_col else 0)
+    )
+else:
+    df["Qualified_Caregivers_Total"] = 0
 
 orphan_cols = [c for c in [
     "Number of Orphans in baby class  - Boys",
@@ -293,7 +313,6 @@ df["Total_Orphans"] = df[orphan_cols].apply(pd.to_numeric, errors="coerce").fill
 refugee_cols = [c for c in df.columns if "refugee" in c.lower()]
 df["Refugee_Count"] = df[refugee_cols].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1) if refugee_cols else 0
 
-# SNE enrolment totals
 sne_cols = [c for c in df.columns if "special needs" in c.lower() or "sne" in c.lower()]
 sne_count_cols = [c for c in sne_cols if any(x in c.lower() for x in ["number", "boys", "girls", "baby", "middle", "top", "day"])]
 df["SNE_Enrollment_Total"] = df[sne_count_cols].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1) if sne_count_cols else 0
@@ -334,9 +353,9 @@ k5.metric("Licensed %", f"{licensed_pct:.1%}" if pd.notna(licensed_pct) else "â€
 s1, s2 = st.columns(2)
 
 with s1:
-    lic_df = f[lic_col].fillna("Unknown").value_counts().reset_index()
+    lic_df = category_counts(f, lic_col)
     lic_df.columns = ["Licensing Status", "Centres"]
-    st.plotly_chart(px.pie(lic_df, names="Licensing Status", values="Centres", title="ECD Centre Status"), use_container_width=True)
+    st.plotly_chart(px.bar(lic_df, x="Licensing Status", y="Centres", title="Licensing Status"), use_container_width=True)
 
 with s2:
     summary_df = pd.DataFrame({
@@ -416,47 +435,23 @@ with tab1:
 
 with tab2:
     c1, c2 = st.columns(2)
-
-    status_df = f[lic_col].fillna("Unknown").value_counts().reset_index()
-    status_df.columns = ["Status", "Centres"]
-    c1.plotly_chart(px.bar(status_df, x="Status", y="Centres", title="ECD Centre Status"), use_container_width=True)
-
-    attach_df = pd.DataFrame({
-        "Indicator": ["Attached to Primary", "Not Attached"],
-        "Value": [
-            count_yes(f, attached_col),
-            len(f) - count_yes(f, attached_col)
-        ]
-    })
-    c2.plotly_chart(px.pie(attach_df, names="Indicator", values="Value", title="Attachment to Primary"), use_container_width=True)
+    c1.plotly_chart(px.bar(category_counts(f, lic_col), x="Category", y="Centres", title="ECD Centre Status"), use_container_width=True)
+    c2.plotly_chart(px.bar(yes_no_counts(f, attached_col), x="Response", y="Centres", title="Attachment to Primary"), use_container_width=True)
 
 with tab3:
-    iecd_df = pd.DataFrame({
-        "Service": [
-            "Deworming",
-            "Hot Meal Program",
-            "Local Language",
-            "Vaccination / Immunization",
-            "Growth Monitoring",
-            "Parenting Education",
-            "Referral Services",
-            "Birth Registration Support"
-        ],
-        "Percent": [
-            yes_share(f, deworm_col),
-            yes_share(f, meal_col),
-            yes_share(f, lang_col),
-            yes_share(f, vacc_col),
-            yes_share(f, growth_col),
-            yes_share(f, parenting_col),
-            yes_share(f, referral_col),
-            yes_share(f, birthreg_col),
-        ]
-    }).dropna()
+    r1, r2, r3 = st.columns(3)
+    r1.plotly_chart(px.bar(yes_no_counts(f, deworm_col), x="Response", y="Centres", title="Deworming"), use_container_width=True)
+    r2.plotly_chart(px.bar(yes_no_counts(f, meal_col), x="Response", y="Centres", title="Hot Meal Program"), use_container_width=True)
+    r3.plotly_chart(px.bar(yes_no_counts(f, lang_col), x="Response", y="Centres", title="Local Language Teaching"), use_container_width=True)
 
-    fig = px.bar(iecd_df, x="Service", y="Percent", title="IECD Services")
-    fig.update_yaxes(tickformat=".0%")
-    st.plotly_chart(fig, use_container_width=True)
+    r4, r5, r6 = st.columns(3)
+    r4.plotly_chart(px.bar(yes_no_counts(f, vacc_col), x="Response", y="Centres", title="Vaccination / Immunization"), use_container_width=True)
+    r5.plotly_chart(px.bar(yes_no_counts(f, growth_col), x="Response", y="Centres", title="Growth Monitoring"), use_container_width=True)
+    r6.plotly_chart(px.bar(yes_no_counts(f, parenting_col), x="Response", y="Centres", title="Parenting Education"), use_container_width=True)
+
+    r7, r8 = st.columns(2)
+    r7.plotly_chart(px.bar(yes_no_counts(f, referral_col), x="Response", y="Centres", title="Referral Services"), use_container_width=True)
+    r8.plotly_chart(px.bar(yes_no_counts(f, birthreg_col), x="Response", y="Centres", title="Birth Registration Support"), use_container_width=True)
 
 with tab4:
     c1, c2, c3 = st.columns(3)
@@ -479,24 +474,27 @@ with tab4:
     })
     c2.plotly_chart(px.bar(trained_qualified_df, x="Category", y="Count", title="Trained and Qualified Caregivers"), use_container_width=True)
 
-    salary_df = pd.DataFrame({
-        "Indicator": ["Salary/Stipend"],
-        "Percent": [yes_share(f, salary_col)]
-    }).dropna()
-    fig = px.bar(salary_df, x="Indicator", y="Percent", title="Centres that Pay Caregivers")
-    fig.update_yaxes(tickformat=".0%")
-    c3.plotly_chart(fig, use_container_width=True)
+    c3.plotly_chart(px.bar(yes_no_counts(f, salary_col), x="Response", y="Centres", title="Centres that Pay Caregivers"), use_container_width=True)
 
 with tab5:
     available_materials = {k: v for k, v in materials_cols.items() if v is not None}
     if available_materials:
         mat_df = pd.DataFrame({
             "Material": list(available_materials.keys()),
-            "Percent": [yes_share(f, col) for col in available_materials.values()]
+            "Yes %": [yes_share(f, col) for col in available_materials.values()]
         }).dropna()
-        fig = px.bar(mat_df, x="Material", y="Percent", title="Learning and Play Materials")
+        fig = px.bar(mat_df, x="Material", y="Yes %", title="Learning and Play Materials")
         fig.update_yaxes(tickformat=".0%")
         st.plotly_chart(fig, use_container_width=True)
+
+        m1, m2, m3 = st.columns(3)
+        items = list(available_materials.items())
+        for i, (label, col) in enumerate(items[:3]):
+            [m1, m2, m3][i].plotly_chart(px.bar(yes_no_counts(f, col), x="Response", y="Centres", title=label), use_container_width=True)
+        if len(items) > 3:
+            n1, n2 = st.columns(2)
+            for i, (label, col) in enumerate(items[3:5]):
+                [n1, n2][i].plotly_chart(px.bar(yes_no_counts(f, col), x="Response", y="Centres", title=label), use_container_width=True)
     else:
         st.info("Learning and play materials columns were not found in this file.")
 
@@ -518,33 +516,33 @@ with tab6:
         c1.plotly_chart(px.bar(infra_df, x="Type", y="Centres", title="Learning Spaces"), use_container_width=True)
 
     if feeding_source_col:
-        feed_src_df = f[feeding_source_col].fillna("Unknown").value_counts().reset_index()
-        feed_src_df.columns = ["Source", "Centres"]
-        c2.plotly_chart(px.bar(feed_src_df, x="Source", y="Centres", title="Source of School Feeding"), use_container_width=True)
+        feed_src_df = category_counts(f, feeding_source_col)
+        c2.plotly_chart(px.bar(feed_src_df, x="Category", y="Centres", title="Source of School Feeding"), use_container_width=True)
 
 with tab7:
     c1, c2 = st.columns(2)
 
     if water_col:
-        water_df = f[water_col].fillna("Unknown").value_counts().reset_index()
-        water_df.columns = ["Water Source", "Centres"]
-        c1.plotly_chart(px.bar(water_df, x="Water Source", y="Centres", title="Drinking Water Source"), use_container_width=True)
+        water_df = category_counts(f, water_col)
+        c1.plotly_chart(px.bar(water_df, x="Category", y="Centres", title="Drinking Water Source"), use_container_width=True)
 
-    wash_df = pd.DataFrame({
-        "Indicator": [
-            "Handwashing Facilities",
-            "Toilets / Latrines",
-            "Accessible Facilities for SNEs"
-        ],
+    wash_summary = pd.DataFrame({
+        "Indicator": ["Handwashing", "Toilets / Latrines", "Accessible for SNEs"],
         "Percent": [
             yes_share(f, handwash_col),
             yes_share(f, toilet_col),
             yes_share(f, accessible_col)
         ]
     }).dropna()
-    fig = px.bar(wash_df, x="Indicator", y="Percent", title="WASH Details")
-    fig.update_yaxes(tickformat=".0%")
-    c2.plotly_chart(fig, use_container_width=True)
+    if len(wash_summary):
+        fig = px.bar(wash_summary, x="Indicator", y="Percent", title="WASH Coverage Summary")
+        fig.update_yaxes(tickformat=".0%")
+        c2.plotly_chart(fig, use_container_width=True)
+
+    w1, w2, w3 = st.columns(3)
+    w1.plotly_chart(px.bar(yes_no_counts(f, handwash_col), x="Response", y="Centres", title="Handwashing Facilities"), use_container_width=True)
+    w2.plotly_chart(px.bar(yes_no_counts(f, toilet_col), x="Response", y="Centres", title="Toilets / Latrines"), use_container_width=True)
+    w3.plotly_chart(px.bar(yes_no_counts(f, accessible_col), x="Response", y="Centres", title="Accessible Facilities for SNEs"), use_container_width=True)
 
 with tab8:
     records_df = pd.DataFrame({
@@ -577,6 +575,29 @@ with tab8:
     fig = px.bar(records_df, x="Record", y="Percent", title="Availability of Records")
     fig.update_yaxes(tickformat=".0%")
     st.plotly_chart(fig, use_container_width=True)
+
+    record_items = {
+        "Attendance Register": register_col,
+        "Lesson Plans": lesson_col,
+        "Learning Framework": framework_col,
+        "Log Book": logbook_col,
+        "Inventory Book": inventory_col,
+        "Correspondence Book": correspondence_col,
+        "Assessment Records": assessment_col,
+        "Scheme of Work": scheme_col,
+        "Timetable / Routine": timetable_col,
+        "Income & Expenditure Books": income_exp_col,
+    }
+
+    cols = st.columns(2)
+    i = 0
+    for label, col in record_items.items():
+        if col is not None:
+            cols[i % 2].plotly_chart(
+                px.bar(yes_no_counts(f, col), x="Response", y="Centres", title=label),
+                use_container_width=True
+            )
+            i += 1
 
     st.subheader("Data Quality")
     dq = pd.DataFrame({
