@@ -6,7 +6,7 @@ import plotly.express as px
 
 st.set_page_config(page_title="ECD Monitoring Dashboard", layout="wide")
 st.title("ECD Monitoring Dashboard")
-st.caption("Upload an ECCE monitoring Excel file to explore access, quality, inclusion, infrastructure, health, nutrition, governance, and data quality.")
+#st.caption("Upload an ECCE monitoring Excel file to explore access, quality, inclusion, infrastructure, health, nutrition, governance, and data quality.")
 # Cache data loading for better performance
 @st.cache_data
 def load_data():
@@ -525,4 +525,5 @@ with tab6:
         file_name="ecd_filtered_records.csv",
         mime="text/csv",
     )
+
 
