@@ -8,7 +8,8 @@ st.title("ECD Monitoring Dashboard")
 
 # ---------- DATA SOURCE ----------
 # Put your Excel file in the same GitHub repo and update this path
-file_url = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/YOUR_ECD_FILE.xlsx"
+file_url = "https://raw.githubusercontent.com/kiggundusharif-v1/ecd-monitoring-dashboard
+/main/ECD_Termly_monitoring_tool_-_Focus_Districts_-_all_versions_-_labels_-_2026-03-10-05-13-40.xlsx"
 
 @st.cache_data
 def load_data(url):
@@ -410,3 +411,4 @@ with tab7:
         ]
     })
     st.dataframe(dq, use_container_width=True)
+
