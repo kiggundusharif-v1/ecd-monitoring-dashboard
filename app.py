@@ -1,6 +1,3 @@
-from pathlib import Path
-
-enhanced_app = r'''
 import io
 import pandas as pd
 import numpy as np
@@ -44,7 +41,6 @@ if not uploaded:
 
 df = load_data(uploaded.getvalue(), uploaded.name).copy()
 
-# Core columns
 district_col = find_col(df, ["District"])
 subcounty_col = find_col(df, ["Sub County", "Subcounty", "Sub-county"])
 parish_col = find_col(df, ["Parish"])
@@ -59,7 +55,6 @@ lic_col = find_col(df, [
     "Licensing status",
 ])
 
-# Enrollment / attendance
 boys_baby = find_col(df, ["Boys_Total_Baby"])
 boys_mid = find_col(df, ["Boys_Total_Mid"])
 boys_top = find_col(df, ["Boys_Total_Top"])
@@ -84,46 +79,45 @@ att_cols = [
 male_cg = find_col(df, ["Number of Caregivers  Males", "Number of Caregivers Males"])
 female_cg = find_col(df, ["Number of Caregivers - Females", "Number of Caregivers Females"])
 
-# Optional columns
-lesson_plan_flag, lesson_plan_col = yes_flag(df, [
+lesson_plan_flag, _ = yes_flag(df, [
     "Are lesson plans available for all caregivers?",
     "Does each caregiver have lesson plans?",
     "Lesson plans available",
 ])
 
-framework_flag, framework_col = yes_flag(df, [
+framework_flag, _ = yes_flag(df, [
     "Does the ECCE centre use the learning framework?",
     "Is the learning framework available and being used?",
     "Learning framework available",
 ])
 
-register_flag, register_col = yes_flag(df, [
+register_flag, _ = yes_flag(df, [
     "Does the ECCE centre have updated attendance register?",
     "Updated attendance register",
 ])
 
-logbook_flag, logbook_col = yes_flag(df, [
+logbook_flag, _ = yes_flag(df, [
     "Does the ECCE centre have updated log book?",
     "Updated log book",
 ])
 
-inventory_flag, inventory_col = yes_flag(df, [
+inventory_flag, _ = yes_flag(df, [
     "Does the ECCE centre have updated inventory book?",
     "Updated inventory book",
 ])
 
-cmc_flag, cmc_col = yes_flag(df, ["Does the ECCE centre have Centre Management Committee (CMC)?"])
-meal_flag, meal_col = yes_flag(df, ["Does the ECCE provide hot midday meals to learners?"])
-lang_flag, lang_col = yes_flag(df, ["Does the ECCE centre teach learners using local languages?"])
-aff_flag, aff_col = yes_flag(df, ["Is the ECCE centre attached or affiliated to a Primary School"])
-sne_flag, sne_col = yes_flag(df, ["Does the ECCE centre have children with Special Needs (SNEs)?"])
-deworm_flag, deworm_col = yes_flag(df, [
+cmc_flag, _ = yes_flag(df, ["Does the ECCE centre have Centre Management Committee (CMC)?"])
+meal_flag, _ = yes_flag(df, ["Does the ECCE provide hot midday meals to learners?"])
+lang_flag, _ = yes_flag(df, ["Does the ECCE centre teach learners using local languages?"])
+aff_flag, _ = yes_flag(df, ["Is the ECCE centre attached or affiliated to a Primary School"])
+sne_flag, _ = yes_flag(df, ["Does the ECCE centre have children with Special Needs (SNEs)?"])
+deworm_flag, _ = yes_flag(df, [
     "Were children dewormed in this term?",
     "Does the ECCE centre provide deworming services?",
     "Deworming service provided"
 ])
 
-community_flag, community_col = yes_flag(df, [
+community_flag, _ = yes_flag(df, [
     "Is the community involved in supporting the ECCE centre?",
     "Community involvement",
 ])
@@ -135,7 +129,6 @@ water_col = find_col(df, [
 
 founder_col = find_col(df, ["Who founded this ECCE centre?"], required=False)
 
-# Infrastructure fields often captured as binary columns
 infra_map = {
     "Permanent Classrooms": ["Where does the ECCE hold their daily lessons?/Permanent Classrooms"],
     "Temporary Classrooms": ["Where does the ECCE hold their daily lessons?/Temporary Classrooms"],
@@ -148,22 +141,21 @@ for label, candidates in infra_map.items():
     if c:
         infra_cols[label] = c
 
-handwash_flag, handwash_col = yes_flag(df, [
+handwash_flag, _ = yes_flag(df, [
     "Are there handwashing facilities at the ECCE centre?",
     "Handwashing facilities available",
 ])
 
-toilet_flag, toilet_col = yes_flag(df, [
+toilet_flag, _ = yes_flag(df, [
     "Does the ECCE centre have latrines/toilets for children?",
     "Toilets available for children",
 ])
 
-accessible_flag, accessible_col = yes_flag(df, [
+accessible_flag, _ = yes_flag(df, [
     "Are facilities accessible for children with special needs?",
     "Accessible facilities for SNEs",
 ])
 
-# Derived metrics
 df["Total_Boys_Enrolled"] = num(df[boys_baby]) + num(df[boys_mid]) + num(df[boys_top]) + num(df[boys_day])
 df["Total_Girls_Enrolled"] = num(df[girls_baby]) + num(df[girls_mid]) + num(df[girls_top]) + num(df[girls_day])
 df["Total_Enrollment"] = df["Total_Boys_Enrolled"] + df["Total_Girls_Enrolled"]
@@ -208,7 +200,6 @@ df["Total_Orphans"] = df[orphan_cols].apply(pd.to_numeric, errors="coerce").fill
 refugee_cols = [c for c in df.columns if "refugee" in c.lower()]
 df["Refugee_Count"] = df[refugee_cols].apply(pd.to_numeric, errors="coerce").fillna(0).sum(axis=1) if refugee_cols else 0
 
-# Filters
 districts = sorted([x for x in df[district_col].dropna().unique().tolist()])
 with st.sidebar:
     st.header("Filters")
@@ -233,7 +224,6 @@ def pct(series):
     val = pd.to_numeric(series, errors="coerce").dropna()
     return float(val.mean()) if len(val) else np.nan
 
-# Headline KPIs
 centres = len(f)
 enrollment = int(f["Total_Enrollment"].sum())
 attendance = int(f["Total_Attendance"].sum())
@@ -249,7 +239,6 @@ c4.metric("Attendance Rate", f"{attendance_rate:.1%}" if pd.notna(attendance_rat
 c5.metric("Caregivers", f"{caregivers:,}")
 c6.metric("Licensed %", f"{licensed_pct:.1%}" if pd.notna(licensed_pct) else "—")
 
-# Pages
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Executive Overview",
     "Access & Scale",
@@ -306,9 +295,9 @@ with tab1:
     heat = kpi_sub[[subcounty_col, "Enrollment", "Attendance Rate", "Learners per Caregiver", "Licensed", "CMC"]].copy()
     heat = heat.set_index(subcounty_col)
     heat.columns = ["Enrollment", "Attendance Rate", "Learners/Caregiver", "Licensed %", "CMC %"]
-    heat_display = heat.copy()
-    if len(heat_display):
-        heat_norm = heat_display.copy()
+
+    if len(heat):
+        heat_norm = heat.copy()
         for col in heat_norm.columns:
             s = pd.to_numeric(heat_norm[col], errors="coerce")
             if s.max() != s.min():
@@ -525,8 +514,3 @@ with tab6:
         file_name="ecd_filtered_records.csv",
         mime="text/csv",
     )
-'''
-
-path = Path("/mnt/data/app_story_streamlit.py")
-path.write_text(enhanced_app, encoding="utf-8")
-print(path)
