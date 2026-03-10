@@ -7,7 +7,18 @@ import plotly.express as px
 st.set_page_config(page_title="ECD Monitoring Dashboard", layout="wide")
 st.title("ECD Monitoring Dashboard")
 st.caption("Upload an ECCE monitoring Excel file to explore access, quality, inclusion, infrastructure, health, nutrition, governance, and data quality.")
-
+# Cache data loading for better performance
+@st.cache_data
+def load_data():
+    file_path = "ECD_Termly_monitoring_tool_-_Focus_Districts_-_all_versions_-_labels_-_2026-03-10-05-13-40.xlsx"
+    try:
+        df = pd.read_excel(file_path, sheet_name="Sheet1")
+    except FileNotFoundError:
+        st.error(f"Excel file not found: {file_path}\nMake sure the file is in the same folder as app.py")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error reading Excel: {e}")
+        st.stop()
 def num(series):
     return pd.to_numeric(series, errors="coerce").fillna(0)
 
@@ -514,3 +525,4 @@ with tab6:
         file_name="ecd_filtered_records.csv",
         mime="text/csv",
     )
+
